@@ -213,14 +213,23 @@ function StudioPage() {
 
     try {
       let finalDataUrl: string | undefined;
-      await streamImage(
-        "/api/generate-image",
-        { prompt: effectivePrompt, size: currentRatio?.size ?? "1024x1024" },
-        (dataUrl, isFinal) => {
-          setResult((current) => ({ ...(current ?? { prompt: basePrompt }), status: "loading", dataUrl }));
-          if (isFinal) finalDataUrl = dataUrl;
-        },
-      );
+      const onFrame = (dataUrl: string, isFinal: boolean) => {
+        setResult((current) => ({ ...(current ?? { prompt: basePrompt }), status: "loading", dataUrl }));
+        if (isFinal) finalDataUrl = dataUrl;
+      };
+      if (reference) {
+        const form = new FormData();
+        form.append("prompt", effectivePrompt);
+        form.append("image[]", reference.file, reference.file.name || "reference.png");
+        form.append("size", currentRatio?.size ?? "1024x1024");
+        await streamImage("/api/edit-image", form, onFrame);
+      } else {
+        await streamImage(
+          "/api/generate-image",
+          { prompt: effectivePrompt, size: currentRatio?.size ?? "1024x1024" },
+          onFrame,
+        );
+      }
       if (!finalDataUrl) throw new Error(t("The image service returned no final image.", "لم تُرجع خدمة الصور نتيجة نهائية."));
 
       const id = crypto.randomUUID();
