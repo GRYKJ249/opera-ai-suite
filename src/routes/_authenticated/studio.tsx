@@ -417,6 +417,39 @@ function StudioPage() {
               )}
             </div>
 
+            <div className="mt-7 border-t border-glass-border pt-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold">{t("Reference image", "صورة مرجعية")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("Upload a base image and the studio will reimagine it with your prompt.", "ارفع صورة أساس ليعيد الاستوديو تصويرها حسب وصفك.")}
+                  </p>
+                </div>
+                <label className="btn-ghost cursor-pointer !px-3 !py-2 text-xs">
+                  <Upload className="h-4 w-4" />
+                  {t("Upload", "رفع")}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      pickReference(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+              {reference && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-glass-border bg-background/35 p-3">
+                  <img src={reference.preview} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                  <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{reference.file.name}</p>
+                  <Button type="button" size="icon" variant="ghost" aria-label={t("Remove reference", "إزالة المرجع")} onClick={clearReference}>
+                    <X />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <Button type="button" size="lg" disabled={!prompt.trim() || result?.status === "loading"} onClick={() => void generate()} className="mt-7 h-12 w-full font-display font-bold">
               {result?.status === "loading" ? <Loader2 className="animate-spin" /> : <Sparkles />}
               {result?.status === "loading" ? t("Creating your world…", "جارٍ إنشاء عالمك…") : t("Generate image", "توليد الصورة")}
@@ -504,7 +537,62 @@ function StudioPage() {
                       <time className="text-[10px] text-muted-foreground">{new Intl.DateTimeFormat(lang === "ar" ? "ar" : "en", { month: "short", day: "numeric" }).format(new Date(item.created_at))}</time>
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{item.prompt}</p>
-                    <Button type="button" variant="ghost" size="sm" className="mt-2 w-full" onClick={() => reusePrompt(item)}><RefreshCw />{t("Reuse prompt", "إعادة استخدام الوصف")}</Button>
+                    <div className="mt-2 flex gap-2">
+                      <Button type="button" variant="ghost" size="sm" className="flex-1" onClick={() => reusePrompt(item)}><RefreshCw />{t("Reuse prompt", "إعادة استخدام الوصف")}</Button>
+                      <Button
+                        type="button"
+                        variant={item.is_public ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => void toggleShare(item)}
+                      >
+                        {item.is_public ? <Globe /> : <Lock />}
+                        {item.is_public ? t("Public", "عامة") : t("Share", "مشاركة")}
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-16 border-t border-glass-border pt-10">
+          <div>
+            <p className="font-mono text-xs uppercase text-primary">{t("Community discovery", "معرض المجتمع")}</p>
+            <h2 className="mt-2 text-3xl font-bold">{t("Shared across the platform", "إبداعات مشتركة من المنصة")}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("Explore public creations and clone any prompt into your studio.", "استكشف الأعمال العامة وانسخ أي وصف إلى استوديوك.")}
+            </p>
+          </div>
+
+          {communityQuery.isLoading ? (
+            <div className="flex min-h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : (communityQuery.data ?? []).length === 0 ? (
+            <div className="mt-6 flex min-h-48 flex-col items-center justify-center border-y border-glass-border text-center">
+              <Globe className="h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 font-semibold">{t("Nothing shared yet.", "لا توجد مشاركات بعد.")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("Share one of your images to start the gallery.", "شارك إحدى صورك لتبدأ المعرض.")}</p>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {(communityQuery.data ?? []).map((item) => (
+                <article key={item.id} className="glass group overflow-hidden rounded-xl">
+                  <div className="relative aspect-square bg-background/40">
+                    {item.signedUrl ? (
+                      <img src={item.signedUrl} alt={item.prompt} loading="lazy" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center"><ImageIcon className="text-muted-foreground" /></div>
+                    )}
+                    {item.signedUrl && (
+                      <div className="absolute inset-x-2 top-2 flex justify-end gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                        <Button size="icon" variant="secondary" aria-label={t("Full screen", "ملء الشاشة")} onClick={() => setLightbox({ src: item.signedUrl ?? "", prompt: item.prompt })}><Expand /></Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] text-primary">{item.style ?? t("Unstyled", "بلا نمط")}</span>
+                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed">{item.prompt}</p>
+                    <Button type="button" variant="ghost" size="sm" className="mt-2 w-full" onClick={() => reusePrompt(item)}><Copy />{t("Clone prompt", "نسخ الوصف")}</Button>
                   </div>
                 </article>
               ))}
